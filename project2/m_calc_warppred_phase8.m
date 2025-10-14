@@ -1,0 +1,93 @@
+%% 计算包裹相位
+function [pha, B] = m_calc_warppred_phase8(files,files_grayCode, N)
+
+sin1 = 0;
+sin2 = 0;
+sin3 = 0;
+sin4 = 0;
+[~, n] = size(files_grayCode);
+Ib=m_imread(files_grayCode{n - 1});%提取全黑图像
+Ib = m_filter2d(Ib);
+%8幅条纹叠加一幅条纹
+for k = 0: N/4 - 1
+    if(k<8)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin1 = sin1 + (Ik-Ib) *2^(8-k-1);
+    end
+    if(7<k&&k<11)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin1 = sin1 + 0.1*(Ik-Ib) *2^(11-k-1);    
+    end
+end
+for k = N/4: N/2 - 1
+    if(k<19)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin2 = sin2 + (Ik-Ib) *2^(8-(k-N/4)-1);
+    end
+    if(k>18&&k<22)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin2 = sin2 + 0.1*(Ik-Ib) *2^(11-(k-N/4)-1);
+    end
+end
+
+for k = N/2: 3*N/4 - 1
+    if(k<30)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin3 = sin3 + (Ik-Ib) *2^(8-(k-N/2)-1);
+    end
+    if(k<29&&k<33)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin3 = sin3 + 0.1*(Ik-Ib) *2^(11-(k-N/2)-1);    
+    end
+end
+
+for k = 3*N/4:N-1
+    if(k<41)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin4 = sin4 + (Ik-Ib) *2^(8-(k-3*N/4)-1);
+    end
+    if(k>40&&k<44)
+    Ik = m_imread(files{k + 1}); % 读取图片
+    Ik = m_filter2d(Ik);
+    sin4 = sin4 + 0.1*(Ik-Ib) *2^(11-(k-3*N/4)-1);    
+    end
+end
+%计算截断相位
+sin_sum=sin4*sin(2*pi/4)+sin3*sin(2*2*pi/4)+sin2*sin(3*2*pi/4)+sin1*sin(4*2*pi/4);
+cos_sum=sin4*cos(2*pi/4)+sin3*cos(2*2*pi/4)+sin2*cos(3*2*pi/4)+sin1*cos(4*2*pi/4);
+
+% 根据计算相位、调制度
+pha = atan2(sin_sum,cos_sum);
+B = sqrt(sin_sum .^ 2 + cos_sum .^ 2) * 2 / 4;
+% B = sqrt((sin_sum-sin_white/2) .^ 2 + (cos_sum-cos_white/2) .^ 2) * 2 / 2;
+% pha = atan2(sin_sum-sin_white/2, cos_sum-cos_white/2);
+% B = sqrt(sin_sum .^ 2 + cos_sum .^ 2) * 2 / N;
+
+%% 尝试注释掉这段，自己从零实现一遍
+% 为了将波折相位转为单个周期内单调递增
+pha = - pha;
+pha = pha + pi;
+% pha_low_mask = pha <= 0;
+% pha = pha + pha_low_mask  .* 2. * pi;
+end
+
+%% 读取图片
+function [img] = m_imread(file)
+img = imread(file);
+img = double(((img(:, :, 1)))); % 转换灰度图
+end
+
+%% 高斯滤波
+function [img] = m_filter2d(img)
+w = 3;
+sigma = 1.;
+kernel = fspecial("gaussian", [w, w], sigma);
+img = imfilter(img, kernel, "replicate");
+end
